@@ -1,7 +1,7 @@
 # ndc_map.R ----------------------------------------------------------------------------------
 #' Mapping U.S. Food and Drug Administration (FDA) National Drug Codes (NDC) to Drug Classes and
 #' Terminologies by querying the RxNorm API at https://rxnav.nlm.nih.gov.
-#' 
+#'
 #' By Fabrício Kury: https://github.com/fabkury
 #' Coding start: 2019/3/26 14:04
 #' Margin column at 100 characters.
@@ -76,7 +76,7 @@ iterateProgress <- function(housekeep_function = NULL) {
     progress_report_job_size*progress_report_frequency), 1))) {
     message(round(100*progress_report_iterator/progress_report_job_size,
       progress_report_precision), '%')
-    
+
     if(!is.null(housekeep_function))
       housekeep_function()
   }
@@ -130,7 +130,7 @@ keepRDS <- function(var, by_name = F, with_exec_label = F,
     var <- eval(parse(text=varname))
   } else
     varname <- deparse(substitute(var))
-  
+
   if(!ignore_rds) {
     rds_file <- paste0(rds_dir, varname,
       ifelse(with_exec_label, paste0(' (', exec_label, ')'), ''), '.rds')
@@ -142,7 +142,7 @@ keepRDS <- function(var, by_name = F, with_exec_label = F,
       })
   }
 }
-scope <- function(expr) { 
+scope <- function(expr) {
   # Evaluates expression within a temporary scope/environment.
   prev_expressions <- getOption('expressions')
   options(expressions = 10000)
@@ -156,6 +156,8 @@ tbl_by_row <- function(data, fun) {
 
 
 # Globals -------------------------------------------------------------------------------------
+setwd('/Users/jettpettus/Documents/github/ndc_map/')
+
 # Set working directory to the .R script directory.
 options(stringsAsFactors = F)
 tryCatch(setwd(dirname(sys.frame(1)$ofile)),
@@ -165,13 +167,14 @@ tryCatch(setwd(dirname(sys.frame(1)$ofile)),
   })
 
 # Source data with NDCs:
-ndc_master_file <- paste0('../Dados/NDC2017.csv')
+#ndc_master_file <- paste0('../Dados/NDC2017.csv')
+ndc_master_file <- paste0('/Users/jettpettus/Dropbox/Swanson/drug_crosswalk/ndc/ndctext/package.txt')
 # Character used to separate columns in the code_master_file:
 ndc_master_file_separator <- ','
 
 # Request codes by making the do_* variables TRUE.
-do_atc5 <- FALSE # If true, will request Anatomical-Therapeutic-Chemical (ATC) level 5 from RxNorm.
-do_atc4 <- TRUE # If true, will request Anatomical-Therapeutic-Chemical (ATC) level 4 from RxClass.
+do_atc5 <- TRUE# If true, will request Anatomical-Therapeutic-Chemical (ATC) level 5 from RxNorm.
+do_atc4 <- FALSE # If true, will request Anatomical-Therapeutic-Chemical (ATC) level 4 from RxClass.
 do_va <- FALSE # If true, will request Veterans' Affairs Drug Classes from RxNorm.
 do_attributes <- FALSE # If true, will request the drug's attributes (brand/generic, strength).
 do_snomedct <- FALSE # If true, will request SNOMED CT from RxNorm.
@@ -211,7 +214,7 @@ global_rds_ignore <- F
 get_labeler_product_from_ndc <- function(ndc) {
   #' This function requires the ndc to be formatted with dashes ('-'). Otherwise it will merely
   #' return the original NDC provided as input.
-  # As per https://open.fda.gov/data/ndc/: 
+  # As per https://open.fda.gov/data/ndc/:
   # "The ndc will be in one of the following configurations: 4-4-2, 5-3-2, or 5-4-1."
   # First segment: labeler: firm that manufactures or distributes the drug.
   # Second segment: product: strength, dosage form, and formulation of a drug for a particular firm.
@@ -254,7 +257,7 @@ get_RxCUI_from_ndcstatus <- function(ndc, ndc_path = list()) {
       paste0RxNormQuery('ndcstatus?ndc=', ndc) %>%
       read_xml() %>%
       xml_find_all('//ndcStatus')
-    
+
     ndc_comment <- xml_text(xml_find_all(ndcStatus, '//comment'))
     if(grepl('\\d{11}', ndc_comment)) { # Found an NDC11 in the comments. Probably a replacement!
       new_ndc <- str_extract(ndc_comment, '\\d{11}')
@@ -263,7 +266,7 @@ get_RxCUI_from_ndcstatus <- function(ndc, ndc_path = list()) {
       else
         return(get_RxCUI_from_ndcstatus(new_ndc, c(ndc_path, ndc)))
     }
-    
+
     # Alright, so if we're here we should have to best NDC for this case (no NDC redirects).
     ndcHistory <- ndcStatus %>%
       xml_find_all('//ndcHistory') %>%
@@ -272,15 +275,15 @@ get_RxCUI_from_ndcstatus <- function(ndc, ndc_path = list()) {
       rbindlist() %>%
       lapply(FUN = unlist) %>%
       bind_rows()
-    
+
     if(length(ndcHistory)) {
       if(any(!is.na(ndcHistory$activeRxcui)))
         # Give preference to active RxCUIs.
         ndcHistory <- ndcHistory[!is.na(ndcHistory$activeRxcui), ]
-      
+
       #' Pick the most recent RxCUI as sorted by the end dates. If it ties, use the start date.
       ndcHistory <- ndcHistory[rev(with(ndcHistory, order(endDate, startDate))), ][1,]
-      
+
       rxcui <- with(ndcHistory, ifelse(is.na(activeRxcui), originalRxcui, activeRxcui))
       rxcui <- as.integer(rxcui)
       # if(length(rxcui)>1)
@@ -298,7 +301,7 @@ get_RxCUI_from_ndcstatus <- function(ndc, ndc_path = list()) {
     .set(ndcstatus_hash, keys = ndc, values = rxcui)
   }
   tibble(ndc = rep(ndc, length(ifzero(rxcui))), rxcui = ifzero(rxcui))
-  
+
   # This is the old code for picking one RxCUI out of the possibly multiple options.
   # Good old times of naïvité! True begginner's luck.
   # ndc_history <- xmlToDataFrame(nodes=ns)
@@ -414,18 +417,18 @@ get_atc5_attributes <- function(atc5) {
         # Web scraping assumed to have been successful.
         names(ddd_u_admr) <- c('atc5', 'atc5_name', 'ddd', 'u', 'adm_r', 'whocc_note')
         ddd_u_admr$atc5_name <- NULL # Not needed.
-        
+
         # Those '""' below seem to be due to an external bug -- maybe the website, maybe xml2.
-        ddd_u_admr$u[ddd_u_admr$u == ""] <- NA 
+        ddd_u_admr$u[ddd_u_admr$u == ""] <- NA
         ddd_u_admr$adm_r[ddd_u_admr$adm_r == ""] <- NA
         ddd_u_admr$whocc_note[ddd_u_admr$whocc_note == ""] <- NA
-        
+
         .set(atc_attributes_hash, keys = atc4, values = ddd_u_admr)
       }
     })
     ddd_u_admr
   }
-  
+
   ddd_u_admr <- tibble(atc5 = atc5, ddd = NA, u = NA, adm_r = NA, whocc_note = NA)
   if(is.na(atc5))
     return(ddd_u_admr)
@@ -442,7 +445,7 @@ get_atc5_attributes <- function(atc5) {
     if(atc5 %in% atc4_ddd_u_admr$atc5)
       ddd_u_admr <- filter(atc4_ddd_u_admr, atc5 == (!! atc5))
   })
-  
+
   ddd_u_admr
 }
 
@@ -533,46 +536,46 @@ get_code_classes <- function(ndc, attributes = do_attributes, va = do_va,
   meshpa = do_meshpa, ndc_to_rxcui_fun = get_RxCUI_from_ndcstatus) {
   # Get the ndc's RxCUI
   drug_products <- ndc_to_rxcui_fun(ndc)
-  
+
   # Get the RxCUI's attributes: TTY and AVAILABLE_STRENGTH
   if(attributes)
     drug_products <- tbl_by_row(drug_products, get_attributes)
-  
+
   # Get the RxCUI's Veterans' Affairs Drug Class(es) and/or ATC-4 code(s).
   # Notice that, unlike all others, VADC and ATC-4 come from the drug producr, not its ingredients.
   if(va)
     drug_products <- tbl_by_row(drug_products, get_va)
-  
+
   if(atc4)
     drug_products <- tbl_by_row(drug_products, get_atc4)
-  
+
   # Get the the drug's ingredients: RxCUI and name
   if(ingredients | atc5 | snomedct | meshpa)
     drug_products <- tbl_by_row(drug_products, get_ingredients)
-  
+
   # Get the ingredients' SNOMEDCT code(s)
   if(snomedct)
     drug_products <- tbl_by_row(drug_products, get_snomedct)
-  
+
   # Get the ingredients' ATC-5 code(s)
   if(atc5)
     drug_products <- tbl_by_row(drug_products, get_atc5)
-  
+
   # Get the ingredients' MESHPA code(s)
   if(meshpa)
     drug_products <- tbl_by_row(drug_products, get_meshpa)
-  
+
   drug_products
 }
 
 tally_mapping_rates <- function(ndc_map, colname) {
   # TODO: Implement this function.
-  
+
   # Rows missing colname
   console(sum(is.na(ndc_map[, colname])), ' (',
     round(100*sum(is.na(ndc_map[, colname]))/nrow(ndc_map), 1),
     '%) rows have no ', colname, ' value.')
-  
+
   # NDCs partially and completely unmapped
   unique_ndc_count <- length(unique(ndc_map[[ndc_field]]))
   unmapped_ndcs <- unique(ndc_map[is.na(ndc_map[[colname]]), ndc_field])
@@ -614,10 +617,10 @@ wrapRDS(ndc_master, {
     master_source <- tibble(read_lines(ndc_master_file)) # Assume the file is a flat list of NDCs.
     # If the first line contains "NDC" (case-insensitive), assume it is the header and skip it.
   remove(ndc_master_line_1)
-  
+
   #' Rename to 'ndc', in lowercase, as is the standard chosen for this script.
   names(master_source) <- tolower(names(master_source))
-  
+
   #' Pick the first occurrence of the NDC in the column names, in case there are multiple columns
   #' with 'NDC' in the name.
   master_source_ndc_column <- min(which(grepl('ndc', names(master_source), fixed = T)))
@@ -651,7 +654,7 @@ if(F) {
       stop('Error: no rows left to process.')
   }
   remove(selected_entries)
-  
+
   #' If NDC11 with no hyphens, add hyphens. For the NDCs with 2 hyphens, cut the last part (the
   #' packaging) to create the "labeler-product" code, i.e. the first two segments of NDC.
   ndc_master$code <- vapply(ndc_master[[ndc_field]],
@@ -693,7 +696,7 @@ if(T) {
     wrapRDS(meshpa_hash, hash())
   if(do_snomedct)
     wrapRDS(snomedct_hash, hash())
-  
+
   update_all_rds <- function() {
     keepRDS(ndcproperties_hash)
     keepRDS(ndcstatus_hash)
@@ -714,14 +717,14 @@ if(T) {
     if(do_snomedct)
       keepRDS(snomedct_hash)
   }
-  
+
   #' This function wrapper below is used to cap the number of queries to RxNorm per second. The
   #' functions inside get_code_classes() use this paste0 instead of the standard one to assemble the
   #' query strings (web addresses). In addition, for convenience, it also adds the base address.
   paste0RxNormQuery <- limit_rate(function(...) {
       paste0('https://rxnav.nlm.nih.gov/REST/', ...)
     }, rate(n=RxNorm_query_rate_limit, period = 1))
-  
+
   i <- as.integer(0)
   error_retry_count <- 0
   code_count <- length(code_master)
@@ -791,4 +794,3 @@ remove(old_option_expressions)
 exec_end_time <- Sys.time()
 console('Script execution completed at ', timeformat(exec_end_time), '. ')
 print(round(exec_end_time-exec_start_time, 1))
-
