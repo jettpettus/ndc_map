@@ -173,10 +173,10 @@ ndc_master_file <- paste0('/Users/jettpettus/Dropbox/Swanson/drug_crosswalk/ndc/
 ndc_master_file_separator <- ','
 
 # Request codes by making the do_* variables TRUE.
-do_atc5 <- TRUE# If true, will request Anatomical-Therapeutic-Chemical (ATC) level 5 from RxNorm.
+do_atc5 <- FALSE # If true, will request Anatomical-Therapeutic-Chemical (ATC) level 5 from RxNorm.
 do_atc4 <- FALSE # If true, will request Anatomical-Therapeutic-Chemical (ATC) level 4 from RxClass.
 do_va <- FALSE # If true, will request Veterans' Affairs Drug Classes from RxNorm.
-do_attributes <- FALSE # If true, will request the drug's attributes (brand/generic, strength).
+do_attributes <- TRUE # If true, will request the drug's attributes (brand/generic, strength).
 do_snomedct <- FALSE # If true, will request SNOMED CT from RxNorm.
 do_meshpa <- FALSE # If true, will request MESH Pharmacological Actions from RxNorm.
 do_ingredients <- FALSE # If true, will request the drug's ingredients from RxNorm.
